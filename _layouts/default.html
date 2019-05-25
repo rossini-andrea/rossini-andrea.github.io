@@ -7,25 +7,25 @@
 	<title>{{ page.title }}</title>
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
 		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<link rel="stylesheet" href="/css/style.css" >
 </head>
 
 <body>
-	<header class="navbar navbar-expand flex-column flex-md-row bd-navbar">
-		<div class="navbar-nav-scroll">
-			<ul class="navbar-nav bd-navbar-nav flex-row">
-				<li class="nav-item"><a class="nav-link" href="/">Index</a></li>
+	<nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+		<div class="collapse navbar-collapse">
+			<ul class="navbar-nav mr-auto">
+				<li class="nav-item active"><a class="nav-link" href="/">Index</a></li>
 			</ul>
 		</div>
-	</header>
-	<div class="container-fluid">
-		<div class="row flex-xl-nowrap">
-			<main class="col-12 col-md-9 col-xl-8 py-md-3 pl-md-5 bd-content"
-				role="main">
-				{{ content }}
-			</main>
+	</nav>
+
+	<main role="main" class="container">
+		<div class="page-content">
+			{{ content }}
 		</div>
-	</div>
-	<footer>
+	</main>
+
+	<footer class="bg-dark fixed-bottom">
 		<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License"
 				style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/80x15.png" /></a><br />This work
 		is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons

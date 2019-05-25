@@ -1,6 +1,7 @@
 ---
 layout: default
 ---
-<p>{{ page.date }}</p>
 
 {{ content }}
+
+<p>Posted on {{ page.date | date: "%-d %B %Y" }}.</p>
