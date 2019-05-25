@@ -3,7 +3,7 @@ title: Andrea Rossini
 layout: default
 ---
 
-# Index
+# Andrea Rossini Blog
 
 {% for post in site.posts %}
 ## [{{ post.title }}]({{ post.url }})
