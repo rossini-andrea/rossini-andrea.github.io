@@ -1,3 +1,11 @@
+---
+layout: default
+---
+
+# Index
+
 {% for post in site.posts %}
-    {% include post.html %}
+## [{{ post.title }}]({{ post.url }})
+
+{{ post.excerpt }}
 {% endfor %}
