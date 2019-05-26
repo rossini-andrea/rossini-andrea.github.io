@@ -1,4 +1,10 @@
-# C# - SIMD and `Vector<T>`
+---
+layout: post
+title: Parallel processing in C# with `Vector<T>`
+snippet: Modern CPUs can perform multiple operations at a time, even in single threaded applications...
+---
+
+Modern CPUs can perform multiple operations at a time, even in single threaded applications. This is achieved using SIMD instructions. This post was inspired by a [series](https://www.youtube.com/watch?v=Pc8DfEyAxzg) on YouTube about C++; at a certain point I asked myself: "and what about .NET?"
 
 ## What is SIMD?
 
@@ -35,7 +41,7 @@ static void Main(string[] args)
 }
 ```
 
-Code is straightfoward; it creates 3 arrays, and loops on all elements a pair at once, and sums it to store the result in the third array, an element at once. Let's try it!
+This code is straightforward; it creates 3 arrays, and loops on all elements a pair at once, and sums it to store the result in the third array, an element at once. Let's try it!
 
 ```txt
 PS K:\devel\C#\Rand0081.SimdTutorial> dotnet build .\Rand0081.SimdTutorial.csproj
@@ -48,9 +54,19 @@ This program is so simple that it already runs at light speed. But, can we make 
 
 ## Introducing `Vector<T>`
 
-`Vector<T>` is a structure
+`Vector<T>` (from now, simply vector) is a structure which holds a fixed length series of elements of the specified type **T**. This generic is geared towards primitive numeric types and allows to benefit of hardware acceleration for arithmetic and bit wise operations.
 
-So, with this knowledge, let's modify our for loop to use `Vector<T>`!
+A vector can be obtained in different ways, but we are interested in iterating an array at large steps, so this is the constructor we need:
+
+```C#
+public Vector (T[] values, int index);
+```
+
+This constructor will make a copy of `Count` items from the specified index of the array `values` into a new vector. Take note that `Count` is a static property, which means that even if vector is a struct, its size will be known only at runtime and it will be the same across every instance.
+
+And here the magic begins: the JIT compiler is configured to know at runtime that a vector should not be stored in a variable somewhere in RAM, rather, if hardware acceleration is available it will be stored in special registers (SSE and AVX) inside the CPU.
+
+So, with this knowledge, let's modify our for loop to use vectors!
 
 ## Vectorized implementation
 
@@ -66,37 +82,37 @@ for (int i = 0; i < testsize; i += Vector<int>.Count)
 }
 ```
 
-And let's compare the underlying JIT-generated x86 assembly. I used [sharplab](https://sharplab.io) to disassemble JIT code, and with some intuition I was able to isolate the Read-Sum-Write pattern from the assembly mess.
+And let's compare the underlying JIT-generated x86 assembly. I used [x64dbg](https://x64dbg.com/#start) to peek at the JIT generated code, and with some intuition I was able to isolate the Read-Sum-Write pattern from the assembly mess.
 
-**With linear for loop**
+With **simple for loop**:
 
 ```asm
-L00c8: lea rcx, [rcx+rdx*4+0x10]
-L00cd: mov ecx, [rcx]
-L00cf: mov rax, [rbp-0x20]
-L00d3: mov edx, [rbp-0x2c]
-L00d6: cmp edx, [rax+0x8]
-[...]
-L00e0: mov r8d, edx
-L00e3: lea rax, [rax+r8*4+0x10]
-L00e8: add ecx, [rax]
-L00ea: mov [rbp-0x64], ecx
+lea rax,qword ptr ds:[rax+rcx*4+10]
+mov eax,dword ptr ds:[rax]
+mov rdx,qword ptr ss:[rbp-20]
+mov ecx,dword ptr ss:[rbp-2C]
+cmp ecx,dword ptr ds:[rdx+8]
+jb 7FFA549B6CB3
+call coreclr.7FFAB45FADA0
+mov r8d,ecx
+lea rdx,qword ptr ds:[rdx+r8*4+10]
+add eax,dword ptr ds:[rdx]
+mov dword ptr ss:[rbp-5C],eax
 ```
 
-**With `Vector<T>`**
+With **vector**:
 
 ```asm
-L00fe: vmovupd ymm0, [rcx+rax*4+0x10]
-L0104: vmovupd [rbp-0x50], ymm0
-[...]
-L0135: vmovupd ymm0, [rcx+rax*4+0x10]
-L013b: vmovupd [rbp-0x70], ymm0
-L0140: vmovupd ymm0, [rbp-0x50]
-L0145: vmovupd ymm1, [rbp-0x70]
-L014a: vpaddd ymm0, ymm0, ymm1
-L014e: vmovupd [rbp-0xf0], ymm0
-L0156: vmovupd ymm0, [rbp-0xf0]
-L015e: vmovupd [rbp-0x90], ymm0
+mov rcx,qword ptr ss:[rbp-20]
+mov eax,dword ptr ss:[rbp-2C]
+movups xmm0,xmmword ptr ds:[rcx+rax*4+10]
+movaps xmmword ptr ss:[rbp-50],xmm0
+movaps xmm0,xmmword ptr ss:[rbp-40]
+movaps xmm1,xmmword ptr ss:[rbp-50]
+paddd xmm0,xmm1
+movaps xmmword ptr ss:[rbp-B0],xmm0
+movaps xmm0,xmmword ptr ss:[rbp-B0]
+movaps xmmword ptr ss:[rbp-60],xmm0
 ```
 
 Well, I'm not an expert, but I can safely state that code is now using SIMD instructions, Hooray! Let's run it...
@@ -119,9 +135,9 @@ Unhandled Exception: System.IndexOutOfRangeException: Index was outside the boun
    at Rand0081.SimdTutorial.Program.Main(String[] args) in K:\devel\C#\Rand0081.SimdTutorial\Program.cs:line 19
 ```
 
-It seems to run fine, the algorithm is working on 4 elements simultaneously but... **What?** Apparently we cannot load element 44 into a Vector. This is because the Vector must be used to its full extent, so the constructor pretends to pull elements 44, 45, 46, 47 from the source array, resulting in an out of range error.
+It seems to run fine, the algorithm is working on 4 elements simultaneously but... **What?** Apparently we cannot load element 44 into a Vector. This is because the vector must be used to its full extent, so the constructor pretends to pull elements 44, 45, 46, 47 from the source array, resulting in an out of range error.
 
-We need a workaround. We must manually loop on the last elements. So let's create a little helper function:
+We need a trick. We must manually loop on the last elements. So let's create a little helper function:
 
 ```C#
 static int GetSplitPoint<T>(int desiredSize) where T : struct
@@ -169,4 +185,16 @@ Simple loop i = 44
 c[21] = 42
 ```
 
-But what if we want to run *even faster*? In the next blog I will try to use parallel loops.
+Finally this simple program is vectorized and works as expected.
+
+## Conclusion
+
+In this writing I skipped a lot of details to jump at the fun of coding. I also forgot to say I'm running my code on a Intel i7 860 CPU which, by documentation, only supports SSE instructions. This is why the loop is running over 4 x 32bits integer at a time. On modern CPUs `Count` may be 8 or even 16.
+
+What if we want to run *even faster*? In a next blog I may use parallel loops.
+
+## Links
+
+* Get the [source](https://github.com/rossini-andrea/Rand0081.SimdTutorial) for this article.
+* SIMD article on [Wikipedia](https://en.wikipedia.org/wiki/SIMD).
+* [MSDN page](https://docs.microsoft.com/en-us/dotnet/api/system.numerics.vector-1) about `Vector<T>`.
