@@ -4,6 +4,8 @@ title: Parallel processing in C# with `Vector<T>`
 snippet: Modern CPUs can perform multiple operations at a time, even in single threaded applications...
 ---
 
+# Parallel processing in C# with `Vector<T>`
+
 Modern CPUs can perform multiple operations at a time, even in single threaded applications. This is achieved using SIMD instructions. This post was inspired by a [series](https://www.youtube.com/watch?v=Pc8DfEyAxzg) on YouTube about C++; at a certain point I asked myself: "and what about .NET?"
 
 ## What is SIMD?
