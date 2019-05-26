@@ -10,6 +10,6 @@ layout: default
 
 {{ post.snippet }}
 
-*Posted on {{ page.date | date: "%-d %B %Y" }}.*
+*Posted on {{ post.date | date: "%-d %B %Y" }}.*
 
 {% endfor %}
